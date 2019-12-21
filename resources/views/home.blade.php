@@ -27,6 +27,7 @@
         });
 
         var channel = pusher.subscribe("{{ $logout_channel }}");
+        var home = "{{ url('/') }}"
         channel.bind('user-logged-out', function(data) {
             Toastify({
                 text: data.name+"! You have been logged out from this website using your Meveto dashboard.",
@@ -41,7 +42,7 @@
                 onClick: function(){}
             }).showToast();
             setTimeout(function(){
-                window.location.replace('http://127.0.0.1:8000/login');
+                window.location.replace(home);
             }, 3000)
         });
 
