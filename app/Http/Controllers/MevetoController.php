@@ -54,10 +54,14 @@ class MevetoController extends Controller
         MevetoState::create([
             'state' => $state
         ]);
-
         $this->meveto->setState($state);
 
-        $url = $this->meveto->login();
+        /**
+         * Check if there is a `client_token` in the login URL of your application. If so, you need to pass the value of this token to
+         * the Meveto login method. Meveto application will attach a one time `client_token` to the login URL of your application
+         * to bypass the need for logging in to Meveto first before Meveto can log the user in to your application. 
+         */
+        $url = $request->get('client_token') ? $this->meveto->login($request->get('client_token')) : $this->meveto->login();
         return Redirect::away($url);
     }
 
