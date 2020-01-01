@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e23a70cfae0b128e9c2696ccfdaa5c4a",
+    "content-hash": "b249d53e1d4e5d6f7f714eba3a3e4456",
     "packages": [
         {
             "name": "dnoegel/php-xdg-base-dir",
@@ -953,16 +953,16 @@
         },
         {
             "name": "meveto/meveto-php-sdk",
-            "version": "v1.2.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/meveto/meveto-php-sdk.git",
-                "reference": "3c669822f036c9d159b3b93ec1732c7106f2a327"
+                "reference": "f7ceadd80696d140b55573ce47bdbfdbb271c12d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/meveto/meveto-php-sdk/zipball/3c669822f036c9d159b3b93ec1732c7106f2a327",
-                "reference": "3c669822f036c9d159b3b93ec1732c7106f2a327",
+                "url": "https://api.github.com/repos/meveto/meveto-php-sdk/zipball/f7ceadd80696d140b55573ce47bdbfdbb271c12d",
+                "reference": "f7ceadd80696d140b55573ce47bdbfdbb271c12d",
                 "shasum": ""
             },
             "require": {
@@ -994,7 +994,7 @@
                 "meveto-php",
                 "oauth"
             ],
-            "time": "2019-12-28T13:49:13+00:00"
+            "time": "2020-01-01T19:30:47+00:00"
         },
         {
             "name": "monolog/monolog",
