@@ -61,7 +61,12 @@ class MevetoController extends Controller
          * the Meveto login method. Meveto application will attach a one time `client_token` to the login URL of your application
          * to bypass the need for logging in to Meveto first before Meveto can log the user in to your application. 
          */
-        $url = $request->get('client_token') ? $this->meveto->login($request->get('client_token')) : $this->meveto->login();
+
+        /**
+         * If your application allows Meveto account sharing, then you must also check for a `sharing_token` in the login URL. If a
+         * sharing_token is found, then you need to pass it as a second parameter to the Meveto login method.
+         */
+        $url = $this->meveto->login($request->get('client_token'), $request->get('sharing_token'));
         return Redirect::away($url);
     }
 
