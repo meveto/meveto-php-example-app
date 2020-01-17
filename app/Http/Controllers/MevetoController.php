@@ -295,6 +295,14 @@ class MevetoController extends Controller
     }
 
     /**
+     * Display the warning to use Meveto for logging in to Meveto protected accounts
+     */
+    public function useMevetoPage(Request $request)
+    {
+        return view('usemeveto');
+    }
+
+    /**
      * Instantiate Meveto Object
      * 
      */
