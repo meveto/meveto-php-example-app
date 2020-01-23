@@ -363,8 +363,6 @@ class MevetoController extends Controller
             'secret' => config('meveto.secret'),
             'scope' => config('meveto.scope'),
             'redirect_url' => config('meveto.redirect_url'),
-            'authEndpoint' => 'http://localhost:3000/oauth-client',
-            'tokenEndpoint' => 'http://mevserver.local/oauth/token',
         ]);
     }
 }
