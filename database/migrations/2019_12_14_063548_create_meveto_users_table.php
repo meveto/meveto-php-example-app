@@ -14,11 +14,10 @@ class CreateMevetoUsersTable extends Migration
     public function up()
     {
         Schema::create('meveto_users', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->string('user_identifier')->unique();
-            $table->timestamp('last_logged_in')->nullable()->default(null);
-            $table->timestamp('last_logged_out')->nullable()->default(null);
-            $table->boolean('is_logged_in')->default(false);
+            $table->bigInteger('id')->unsigned()->unique();
+            $table->foreign('id')->references('id')->on('users')->onDelete('cascade');
+            $table->bigInteger('last_logged_in')->unsigned()->nullable()->default(null);
+            $table->bigInteger('last_logged_out')->unsigned()->nullable()->default(null);
             $table->engine = 'InnoDB';
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_ci';

@@ -49,8 +49,7 @@ class LoginController extends Controller
 
         // Check if the user is using Meveto with your application, then reject the old login request.
         $user = User::where('email', $request->get('email'))->first();
-        $mevetoUser = MevetoUser::where('user_identifier', $user->email)->orWhere('user_identifier', $user->id)->first();
-        if($mevetoUser !== null)
+        if($user->meveto_id !== null)
         {
             return redirect()->route('meveto.use');
         }

@@ -26,5 +26,5 @@ Route::post('meveto/connect', 'MevetoController@connectToMeveto')->name('meveto.
 Route::get('use-meveto', 'MevetoController@useMevetoPage')->name('meveto.use');
 Route::get('logout', 'Auth\LoginController@logout');
 
-// Application's logout webhook that will be called by Meveto
-Route::post('meveto/logout', 'MevetoController@logout');
+// Application's webhook that will be called by Meveto
+Route::post('meveto/webhook', 'MevetoController@handleWebhookCall');

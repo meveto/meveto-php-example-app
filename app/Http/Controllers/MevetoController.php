@@ -6,6 +6,8 @@ use App\Events\LoggedOut;
 use App\MevetoState;
 use App\MevetoUser;
 use App\User;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,27 +110,28 @@ class MevetoController extends Controller
             $userIdentifer = $data['user'];
 
             /**
-             * Next, Try to find the user by email in your database. If not, then try to find the user by another unique identifier such
-             * as a `user ID` because your application might have set that as an alias identifier for the user.
+             * Next, Try to find the user by Meveto ID.
              */
-            $user = User::where('id', '=', $userIdentifer)->orWhere('email', '=', $userIdentifer)->first();
+            $user = User::where('meveto_id', '=', $userIdentifer)->first();
             if($user !== null)
             {
-                /**
-                 * Next, add the user to the list of of Meveto Users if the user is not already added. If you would like to completely
-                 * remove traditional password based login to your application (Highly recommended), then you may not need a different
-                 * list of users that are using Meveto. However, otherwise, your application must at least disable other means of login
-                 * to your application if they start using Meveto. Therefore, your application would need a different list to identify
-                 * users that have started using Meveto with your application.
-                 */
-                MevetoUser::updateOrCreate(
-                    ['user_identifier' => $userIdentifer], // Notice we are using user identifier returned by Meveto
-                    ['last_logged_in' => date('Y-m-d H:i:s'), 'is_logged_in' => 1]
-                );
+                try {
+                    /**
+                     * Create or Update the MevetoUser record for this login
+                     */
+                    MevetoUser::updateOrCreate(
+                        ['id' => $user->id],
+                        ['last_logged_in' => Carbon::now()->timestamp]
+                    );
+    
+                    // Log the user in and redirect the user to any destination you want.
+                    Auth::login($user);
+                    return redirect()->route('home');
 
-                // Log the user in and redirect the user to any destination you want.
-                Auth::login($user);
-                return redirect()->route('home');
+                } catch(Exception $e)
+                {
+                    // Catch any exceptions
+                }
             }
 
             /**
@@ -148,7 +151,7 @@ class MevetoController extends Controller
              * authorized your application's access and is owner of the token.
              */
 
-            return redirect()->route('meveto-connect', ['token' => $response['access_token']]);
+            return redirect()->route('meveto-connect', ['meveto_id' => $userIdentifer]);
 
         } else {
             return 'States did not match. Invalid OAuth Response';
@@ -156,7 +159,7 @@ class MevetoController extends Controller
     }
 
     /**
-     * Validate a User's credentials before sending an account synchronization request to Meveto
+     * Validate a User's credentials before attaching a Meveto ID to the user
      */
     public function connectToMeveto(Request $request)
     {
@@ -166,30 +169,27 @@ class MevetoController extends Controller
          * If Login attempt was successful, then send the synchronization request to Meveto.
          */
         if ($this->attemptLogin($request)) {
-            /**
-             * It is important to set a unique and non-changeable identifier as an alias for the user.
-             * For example, ID of the user is a good candidate for a user can change their email addresses which
-             * will again require the user to set an alias for the new email. But you set their non-changeable unique ID as an alias
-             * for their account, then it will remain constant all the time.
-             */
 
+            // Attach Meveto ID to the user now
             try {
+                $user = User::where('email', $request->post('email'))->first();
+                $user->meveto_id = $request->post('meveto_id');
+                $user->save();
 
-                if($this->meveto->connectToMeveto($request->post('token'), Auth::user()->id))
-                {
-                    // Let's update or create a Meveto User record inside your application
-                    MevetoUser::updateOrCreate(
-                        ['user_identifier' => Auth::user()->id], // Notice we are using user identifier returned by Meveto
-                    ['last_logged_in' => date('Y-m-d H:i:s'), 'is_logged_in' => 1]
+                /**
+                 * Create or Update the MevetoUser record for this login
+                 */
+                MevetoUser::updateOrCreate(
+                    ['id' => $user->id],
+                    ['last_logged_in' => Carbon::now()->timestamp]
                 );
                 
                 return $this->sendLoginResponse($request);
-                } else {
-                    // Synchronization attempt failed.
-                }
             } catch(\Exception $e)
             {
-                // Catch any exceptions thrown by Meveto SDK
+                var_dump($e->getTrace());
+                return 'There was a problem::'.$e->getMessage();
+                // Catch any exceptions
             }
         }
 
@@ -197,91 +197,141 @@ class MevetoController extends Controller
     }
 
     /**
-     * This method will log a user out that's logged in through Meveto. This Method will run when Meveto sends a logout request
-     * to your application's Logout hook.
+     * This method will handle a webhook call to your application by Meveto
+     * 
+     * @param Request
+     * @return Response
      */
-    public function logout(Request $request)
+    public function handleWebhookCall(Request $request)
     {
+        Log::info("Received webhook call from Meveto.");
         /**
-         * Meveto will send your application a logout token. You will need to grab this token from the request and exchange it with
-         * Meveto for information on the user that logged out.
-         * The token is sent to your application as "meveto_logout"
+         * Meveto will send a `type` attribute in the webhook call's payload to your application. Your application should switch over
+         * the `type` of the call and then process the request accordingly.
+         * 
+         * If user identification is required for your application to process a webhook call, then Meveto will send your application
+         * a user token. You will need to grab this token from the request and exchange it with Meveto for information on the user that
+         * performed the action. The token is sent to your application as "user_token"
          */
-        $logoutToken = $request->get('meveto_logout');
 
-        try {
-            // Next, retrieve the logout user from Meveto
-            $user = $this->meveto->getLogoutUser($logoutToken);
+        //First grab payload from the request
+        $payload = $request->all();
 
-            /**
-             * Next make sure that the user is logged in with your application using Meveto. Remember that there is a MevetoUser
-             * model that keeps track of the users that are logged in through Meveto.
-             */
-            $mevetoUser = MevetoUser::where('user_identifier', '=', $user)->first();
-            if($mevetoUser !== null)
-            {
-                /**
-                 * There is a `is_logged_in` column that indicates if the user is currently logged in with your application using
-                 * Meveto or not.
-                 */
-                if($mevetoUser->is_logged_in)
-                {
-                    try {
-                        /**
-                         * Remember that this method was invoked by a webhook call to your application from Meveto. Therefore, current
-                         * execution of this method does not have any link with the users's browser. Your application might be using
-                         * browser cookies or an Authorization token for user login. There are two recommended ways of loggin the user
-                         * out.
-                         * 1. If your application is using browser cookies/session to keep a user logged in, then we can use MevetoUser
-                         * instance and set the `is_logged_in` falg to FALSE. Then, there should be a global middleware or a method
-                         * that must run before each protected page of your application is accessed. In this middleware or method, you
-                         * will need to check if the `is_logged_in` property for the currently authenticated user has been set to false.
-                         * If so, your clear authentication cookies/sessions of your browser and redirect the user to another location.
-                         * You can choose to have other similar approaches if you want. So as soon as the user's browser makes a request
-                         * to your application, they will be automatically logged out. You can further inhance this experience for the user
-                         * by using a service like Pusher.
-                         * 
-                         * 2. If your application is using access tokens such as JWT tokens for authentication, then the process will be
-                         * relatively simple. All you need to do here is to revoke or delete the access token for the current user. But
-                         * for this to work, your application must be keeping track/storing access tokens. If access tokens are not stored
-                         * and managed, then you can still implement a similar approach as described in approach 1 above. Only this time, in
-                         * your middleware or global method, you would invalidate the access token if your application is not using cookies.
-                         */
-                        $mevetoUser->is_logged_in = false;
-                        $mevetoUser->save();
-
-                        
-                        Log::info("User `{$user}` successfully logged out.");
-
-                        /**
-                         * Finally, invoke an event that would let your application's user interface to refresh automatically. This will make
-                         * the logout process seamless for your users. Usually, for this purpose, your application would use something like
-                         * Pusher or Socket.io
-                         */
-                        // Get ID and name of the user for the LoggedOut Event
-                        $user = User::where('id', '=', $user)->orWhere('email', '=', $user)->first();
-                        event(new LoggedOut($user->id, $user->name));
-                    } catch(\Exception $e)
-                    {
-                        Log::info("An error occured while trying to logout user `{$user}`", [
-                            'message' => $e->getMessage(),
-                            'trace' => $e->getTrace()
-                        ]);
-                    }
-                } else {
-                    Log::info("`{$user}` is not logged in using Meveto");
-                }
-            } else {
-                Log::info("`{$user}` Could not be found as a Meveto user.");
-            }
-
-        } catch(\Exception $e)
+        switch($payload['type'])
         {
-            // Catch any exceptions thrown by Meveto SDK
-            Log::info("Could not retrieve logout user identifier from Meveto.", [
-                'message' => $e->getMessage()
-            ]);
+            // This `type` means that the User has requested a logout from your application using their Meveto dashboard.
+            case 'User_Logged_Out':
+                Log::info("Processing `User_Logged_Out` event...");
+                
+                // Identify the user that logged out. Exchange the 'user_token' with Meveto for user ID
+                $userToken = $payload['user_token'];
+                try {
+                    // Retrieve the user from Meveto
+                    $user = $this->meveto->getTokenUser($userToken);
+
+                    /**
+                     * Next, Find the user by Meveto ID
+                     */
+                    $user = User::where('meveto_id', $user)->first();
+                    if($user !== null)
+                    {
+                        try {
+                            /**
+                             * Remember that this method was invoked by a webhook call to your application from Meveto. Therefore, current
+                             * execution of this method does not have any link with the users's browser. Your application might be using
+                             * browser cookies or an Authorization token for user login. There are two recommended ways of loggin the user
+                             * out.
+                             * 1. If your application is using browser cookies/session to keep a user logged in, then we can use MevetoUser
+                             * instance and set the `is_logged_in` falg to FALSE. Then, there should be a global middleware or a method
+                             * that must run before each protected page of your application is accessed. In this middleware or method, you
+                             * will need to check if the `is_logged_in` property for the currently authenticated user has been set to false.
+                             * If so, your clear authentication cookies/sessions of your browser and redirect the user to another location.
+                             * You can choose to have other similar approaches if you want. So as soon as the user's browser makes a request
+                             * to your application, they will be automatically logged out. You can further inhance this experience for the user
+                             * by using a service like Pusher.
+                             * 
+                             * 2. If your application is using access tokens such as JWT tokens for authentication, then the process will be
+                             * relatively simple. All you need to do here is to revoke or delete the access token for the current user. But
+                             * for this to work, your application must be keeping track/storing access tokens. If access tokens are not stored
+                             * and managed, then you can still implement a similar approach as described in approach 1 above. Only this time, in
+                             * your middleware or global method, you would invalidate the access token if your application is not using cookies.
+                             */
+                            MevetoUser::where('id', $user->id)->update(['last_logged_out' => Carbon::now()->timestamp]);
+    
+                            /**
+                             * Finally, invoke an event that would let your application's user interface to refresh automatically. This will make
+                             * the logout process seamless for your users. Usually, for this purpose, your application would use something like
+                             * Pusher or Socket.io
+                             */
+                            event(new LoggedOut($user->id, $user->name));
+
+                            // You need to return a 200 OK response to Meveto
+                            return response()->json('');
+                        } catch(\Exception $e)
+                        {
+                            // Catch any exceptions
+                            Log::info("An error occured while trying to logout user `{$user->id}`", [
+                                'message' => $e->getMessage()
+                            ]);
+                        }
+                    } else {
+                        // You can ignore the webhook call for logout if the Meveto ID could not be matched to a user at your application.
+                    }
+        
+                } catch(\Exception $e)
+                {
+                    // Catch any exceptions thrown by Meveto SDK
+                    Log::info("Could not retrieve logout user identifier from Meveto.", [
+                        'message' => $e->getMessage()
+                    ]);
+                }
+            break;
+            case 'Meveto_Protection_Removed':
+                Log::info("Processing `Meveto_Protection_Removed` event...");
+
+                // Identify the user that removed Meveto protection. Exchange the 'user_token' with Meveto for user ID
+                $userToken = $payload['user_token'];
+                try {
+                    // Retrieve the user from Meveto
+                    $user = $this->meveto->getTokenUser($userToken);
+
+                    /**
+                     * Next, Find the user by Meveto ID
+                     */
+                    $user = User::where('meveto_id', $user)->first();
+                    if($user !== null)
+                    {
+                        try {
+                            // Set Meveto ID on the user to NULL
+                            $user->meveto_id = null;
+                            $user->save();
+
+                            // Next, also remove the corresponding MevetoUser Record
+                            MevetoUser::where('id', $user->id)->delete();
+
+                            // You need to return a 200 OK response to Meveto
+                            return response()->json('');
+                        } catch(\Exception $e)
+                        {
+                            // Catch any exceptions
+                            Log::info("An error occured while trying to set Meveto ID to null for user `{$user->id}`", [
+                                'message' => $e->getMessage()
+                            ]);
+                        }
+                    } else {
+                        // You can ignore the webhook call for logout if the Meveto ID could not be matched to a user at your application.
+                    }
+        
+                } catch(\Exception $e)
+                {
+                    // Catch any exceptions thrown by Meveto SDK
+                    Log::info("Could not retrieve logout user identifier from Meveto.", [
+                        'message' => $e->getMessage()
+                    ]);
+                }
+            break;
         }
+
     }
 
     /**
@@ -291,7 +341,7 @@ class MevetoController extends Controller
      */
     public function loginPage(Request $request)
     {
-        return view('auth.connect')->with('token', $request->get('token'));
+        return view('auth.connect')->with('meveto_id', $request->get('meveto_id'));
     }
 
     /**
@@ -312,7 +362,9 @@ class MevetoController extends Controller
             'id' => config('meveto.id'),
             'secret' => config('meveto.secret'),
             'scope' => config('meveto.scope'),
-            'redirect_url' => config('meveto.redirect_url')
+            'redirect_url' => config('meveto.redirect_url'),
+            'authEndpoint' => 'http://localhost:3000/oauth-client',
+            'tokenEndpoint' => 'http://mevserver.local/oauth/token',
         ]);
     }
 }
