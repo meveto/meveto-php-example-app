@@ -65,7 +65,7 @@
 
                     @auth
                         <h4>
-                            Welcome to Meveto PHP Demo {{ Auth::user()->name }}
+                            Welcome {{ Auth::user()->name }}
                         </h4>
                         You are logged in!
                     @endauth
