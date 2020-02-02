@@ -63,7 +63,12 @@
                         </div>
                     @endif
 
-                    You are logged in!
+                    @auth
+                        <div class="title">
+                            Welcome to Meveto PHP Demo {{ Auth::user()->name }}
+                        </div>
+                        You are logged in!
+                    @endauth
                 </div>
             </div>
         </div>
