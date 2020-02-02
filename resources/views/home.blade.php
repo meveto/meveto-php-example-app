@@ -64,9 +64,9 @@
                     @endif
 
                     @auth
-                        <div class="title">
+                        <h4>
                             Welcome to Meveto PHP Demo {{ Auth::user()->name }}
-                        </div>
+                        </h4>
                         You are logged in!
                     @endauth
                 </div>
