@@ -367,8 +367,7 @@ class MevetoController extends Controller
             'tokenEndpoint' => 'https://staging.meveto.com/oauth/token',
         ]);
 
-        $this->meveto->setResourceEndpoint("https://staging.meveto.com/api/client/user");
-        $this->meveto->setAliasEndpoint("https://staging.meveto.com/api/client/user/alias");        
-        $this->meveto->setUserEndpoint("https://staging.meveto.com/api/client/user-for-token");
+        $this->meveto->mevetoServer->resourceEndpoint("https://staging.meveto.com/api/client/user");     
+        $this->meveto->mevetoServer->eventUserEndpoint("https://staging.meveto.com/api/client/user-for-token");
     }
 }
