@@ -363,6 +363,12 @@ class MevetoController extends Controller
             'secret' => config('meveto.secret'),
             'scope' => config('meveto.scope'),
             'redirect_url' => config('meveto.redirect_url'),
+            'authEndpoint' => 'https://dev.meveto.com/oauth-client',
+            'tokenEndpoint' => 'https://staging.meveto.com/oauth/token',
         ]);
+
+        $this->meveto->setResourceEndpoint("https://staging.meveto.com/api/client/user");
+        $this->meveto->setAliasEndpoint("https://staging.meveto.com/api/client/user/alias");        
+        $this->meveto->setUserEndpoint("https://staging.meveto.com/api/client/user-for-token");
     }
 }
