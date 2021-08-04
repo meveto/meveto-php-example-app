@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Meveto\Client\MevetoService;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 
 class MevetoController extends Controller
@@ -165,9 +166,6 @@ class MevetoController extends Controller
     {
         $this->validateLogin($request);
 
-        /**
-         * If Login attempt was successful, then send the synchronization request to Meveto.
-         */
         if ($this->attemptLogin($request)) {
 
             // Attach Meveto ID to the user now
@@ -187,9 +185,7 @@ class MevetoController extends Controller
                 return $this->sendLoginResponse($request);
             } catch(\Exception $e)
             {
-                var_dump($e->getTrace());
-                return 'There was a problem::'.$e->getMessage();
-                // Catch any exceptions
+                return 'There was a problem. '.$e->getMessage();
             }
         }
 
@@ -358,16 +354,37 @@ class MevetoController extends Controller
      */
     protected function Meveto()
     {
-        $this->meveto = new MevetoService([
+        $config = [
             'id' => config('meveto.id'),
             'secret' => config('meveto.secret'),
             'scope' => config('meveto.scope'),
             'redirect_url' => config('meveto.redirect_url'),
-            'authEndpoint' => 'https://dev.meveto.com/oauth-client',
-            'tokenEndpoint' => 'https://staging.meveto.com/oauth/token',
-        ]);
+        ];
 
-        $this->meveto->setResourceEndpoint("https://staging.meveto.com/api/client/user");
-        $this->meveto->setUserEndpoint("https://staging.meveto.com/api/client/user-for-token");
+        if (App::environment('local')) {
+            $config = array_merge($config, [
+                'authEndpoint' => 'http://localhost:3000/oauth-client',
+                'tokenEndpoint' => 'http://server.mev.localhost/oauth/token',
+            ]);
+        }
+
+        if (App::environment('staging')) {
+            $config = array_merge($config, [
+                'authEndpoint' => 'https://dev.meveto.com/oauth-client',
+                'tokenEndpoint' => 'https://staging.meveto.com/oauth/token',
+            ]);
+        }
+
+        $this->meveto = new MevetoService($config);
+
+        if (App::environment('local')) {
+            $this->meveto->setResourceEndpoint("http://server.mev.localhost/api/client/user");
+            $this->meveto->setUserEndpoint("http://server.mev.localhost/api/client/user-for-token");
+        }
+
+        if (App::environment('staging')) {
+            $this->meveto->setResourceEndpoint("https://staging.meveto.com/api/client/user");
+            $this->meveto->setUserEndpoint("https://staging.meveto.com/api/client/user-for-token");
+        }
     }
 }

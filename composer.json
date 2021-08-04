@@ -17,6 +17,7 @@
         "guzzlehttp/guzzle": "^7.0",
         "laravel/framework": "^8.0",
         "laravel/ui": "^3.2",
+        "laravel/vapor-core": "^2.12",
         "meveto/meveto-php-sdk": "^2.0",
         "pusher/pusher-php-server": "^4.0"
     },

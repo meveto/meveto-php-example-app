@@ -1,0 +1,22 @@
+id: 23039
+name: meveto-oauth-demo
+environments:
+  production:
+    memory: 1024
+    cli-memory: 512
+    runtime: "php-8.0:al2"
+    database: meveto-staging
+    gateway-version: 2
+    build:
+      - "COMPOSER_MIRROR_PATH_REPOS=1 composer install --no-dev"
+      - "php artisan event:cache"
+      - "npm ci && npm run prod && rm -rf node_modules"
+  staging:
+    memory: 1024
+    cli-memory: 512
+    runtime: "php-8.0:al2"
+    database: meveto-staging
+    gateway-version: 2
+    build:
+      - "COMPOSER_MIRROR_PATH_REPOS=1 composer install --no-dev"
+      - "php artisan event:cache"
